@@ -46,35 +46,40 @@ class DictDatabase(object):
             if "{}".format(error).find("already exists") == -1:
                 print("During creation, received error: {}".format(error))
 
-    def update(self, table_columns_values):
+    def update(self, table_columns_values, buffer=False):
         '''
         Update a database row.
         '''
+        template = "update {} set {} = {} where {} == {}"
+        command = template.format(table_columns_values["name"],
+                                  table_columns_values["fieldName"],
+                                  table_columns_values["value"],
+                                  table_columns_values["selector"],
+                                  table_columns_values["selectorValue"])
         try:
-            cursor = self.database.execute(
-                "update {} set {} = {} where {} == {}"
-                .format(table_columns_values["name"],
-                        table_columns_values["fieldName"],
-                        table_columns_values["value"],
-                        table_columns_values["selector"],
-                        table_columns_values["selectorValue"]))
-            if cursor is not None:
-                self.database.commit()
+            cursor = self.database.execute(command)
+            if cursor.rowcount == 1:
+                if not buffer:
+                    self.database.commit()
+                return False
             else:
-                print("Table update failure: {}".format(table_columns_values))
+                print("Table update row did not exist: {}".format(table_columns_values))
+                return True
         except sqlite3.OperationalError as error:
             print("During update of a table, received error: {}".format(error))
+            print(command)
+            return True #update failed
 
     def insert(self, table_columns_values, buffer=False):
         '''
         Insert a database row.
         '''
-        try:
-            command = "insert into {} ({}) values ({})".format(
-                table_columns_values["name"],
-                table_columns_values["fieldNames"],
-                table_columns_values["values"])
+        template = "insert into {} ({}) values ({})"
+        command = template.format(table_columns_values["name"],
+                                  table_columns_values["fieldNames"],
+                                  table_columns_values["values"])
 
+        try:
             cursor = self.database.execute(command)
             if cursor is not None:
                 if not buffer:
